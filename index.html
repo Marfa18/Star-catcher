@@ -157,14 +157,12 @@
     <p class="info">Use buttons or Arrow keys</p>
 
     <script>
-        // === ВСТАВ СВОЄ ПОСИЛАННЯ СЮДИ ===
-        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxvxMF_2h5WigOUpzYtMMzOLNtZlU2MqWBgTL917gC64oLa6VgcFwza50APoVqW6AO_/exec"; 
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzgtTuQmp5euCs4rqWYUqqCayk_Z9wlwUO05WqDT80Du0i0Pz1mix2BgRO0uKT1L3bY/exec"; 
 
         let score = 0, gameRunning = false, playerX = 50, starY = -10, starX = 50, speed = 0.3, currentPlayer = "";
         const player = document.getElementById('player'), star = document.getElementById('star'), scoreEl = document.getElementById('score');
         const bestScoreEl = document.getElementById('best-score'), gameOverEl = document.getElementById('gameOver'), startScreen = document.getElementById('startScreen');
 
-        // Автозаповнення імені, якщо вже грав(ла)
         if(localStorage.getItem('lastPlayerName')) {
             document.getElementById('playerName').value = localStorage.getItem('lastPlayerName');
         }
@@ -232,7 +230,6 @@
             updateBestScoreDisplay();
             gameOverEl.style.display = 'block';
             
-            // Відправка в хмару та оновлення таблиці
             saveScoreToCloud(currentPlayer, score);
         }
 
