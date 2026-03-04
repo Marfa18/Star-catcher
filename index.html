@@ -19,15 +19,16 @@
             position: relative;
         }
 
-        #score {
+        #ui-layer {
             position: absolute;
             top: 20px;
             left: 20px;
             color: white;
-            font-size: 24px;
-            font-weight: bold;
             z-index: 10;
         }
+
+        #score { font-size: 24px; font-weight: bold; }
+        #best-score { font-size: 16px; opacity: 0.8; margin-top: 5px; }
 
         #player {
             position: absolute;
@@ -49,7 +50,7 @@
             line-height: 1;
         }
 
-        #gameOver {
+        #gameOver, #startScreen {
             display: none;
             position: absolute;
             top: 50%;
@@ -60,14 +61,21 @@
             border-radius: 20px;
             text-align: center;
             z-index: 100;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }
 
-        #gameOver h2 {
-            color: #e74c3c;
-            margin-bottom: 10px;
+        #startScreen { display: block; }
+
+        input {
+            padding: 10px;
+            font-size: 16px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            margin-bottom: 15px;
+            width: 80%;
         }
 
-        #gameOver button {
+        button {
             background: #3498db;
             color: white;
             border: none;
@@ -75,7 +83,6 @@
             font-size: 18px;
             border-radius: 10px;
             cursor: pointer;
-            margin-top: 10px;
         }
 
         #controls {
@@ -91,19 +98,9 @@
         #controls button {
             width: 80px;
             height: 80px;
-            font-size: 30px;
-            border: none;
             border-radius: 50%;
             background: rgba(255,255,255,0.2);
-            color: white;
             backdrop-filter: blur(10px);
-            cursor: pointer;
-            user-select: none;
-        }
-
-        #controls button:active {
-            background: rgba(255,255,255,0.4);
-            transform: scale(0.95);
         }
 
         .info {
@@ -118,43 +115,70 @@
 </head>
 <body>
     <div id="game">
-        <div id="score">⭐ 0</div>
+        <div id="ui-layer">
+            <div id="score">⭐ 0</div>
+            <div id="best-score">Best: 0</div>
+        </div>
+
+        <div id="startScreen">
+            <h2>Welcome!</h2>
+            <input type="text" id="playerName" placeholder="Enter your name" maxlength="15">
+            <br>
+            <button onclick="startGame()">Start Game</button>
+        </div>
+
         <div id="player">🚀</div>
         <div id="star">⭐</div>
+
         <div id="gameOver">
-            <h2>Game Over!</h2>
+            <h2 id="overTitle">Game Over!</h2>
             <p>Score: <span id="finalScore">0</span></p>
+            <p id="recordMsg" style="color: #27ae60; font-weight: bold; display: none;">New Personal Record! 🎉</p>
             <button onclick="restart()">Play Again</button>
         </div>
     </div>
+
     <div id="controls">
         <button ontouchstart="move('left')" onmousedown="move('left')">◀</button>
         <button ontouchstart="move('right')" onmousedown="move('right')">▶</button>
     </div>
-    <p class="info">Click the buttons or use the Arrow keys on your keyboard</p>
+    <p class="info">Use buttons or Arrow keys</p>
 
     <script>
         let score = 0;
-        let gameRunning = true;
+        let gameRunning = false;
         let playerX = 50;
         let starY = -10;
         let starX = 50;
         let speed = 0.3;
+        let currentPlayer = "";
 
         const player = document.getElementById('player');
         const star = document.getElementById('star');
         const scoreEl = document.getElementById('score');
+        const bestScoreEl = document.getElementById('best-score');
         const gameOverEl = document.getElementById('gameOver');
-        const finalScoreEl = document.getElementById('finalScore');
+        const startScreen = document.getElementById('startScreen');
+
+        function startGame() {
+            const nameInput = document.getElementById('playerName').value.trim();
+            currentPlayer = nameInput || "Guest";
+            startScreen.style.display = 'none';
+            updateBestScoreDisplay();
+            gameRunning = true;
+            resetStar();
+            gameLoop();
+        }
+
+        function updateBestScoreDisplay() {
+            const savedBest = localStorage.getItem('best_' + currentPlayer) || 0;
+            bestScoreEl.textContent = `Best for ${currentPlayer}: ${savedBest}`;
+        }
 
         function move(direction) {
             if (!gameRunning) return;
-            
-            if (direction === 'left' && playerX > 10) {
-                playerX -= 8;
-            } else if (direction === 'right' && playerX < 90) {
-                playerX += 8;
-            }
+            if (direction === 'left' && playerX > 10) playerX -= 8;
+            else if (direction === 'right' && playerX < 90) playerX += 8;
             player.style.left = playerX + '%';
         }
 
@@ -167,50 +191,43 @@
             if (!gameRunning) return;
             
             starY += speed;
-            
             if (starY > 110) {
-                gameOver();
+                handleGameOver();
                 return;
             }
             
-            const playerRect = player.getBoundingClientRect();
-            const starRect = star.getBoundingClientRect();
+            const pR = player.getBoundingClientRect();
+            const sR = star.getBoundingClientRect();
+            const dist = Math.sqrt(Math.pow((pR.left+pR.width/2)-(sR.left+sR.width/2), 2) + Math.pow((pR.top+pR.height/2)-(sR.top+sR.height/2), 2));
             
-            const playerCenterX = playerRect.left + playerRect.width / 2;
-            const playerCenterY = playerRect.top + playerRect.height / 2;
-            const starCenterX = starRect.left + starRect.width / 2;
-            const starCenterY = starRect.top + starRect.height / 2;
-            
-            const distance = Math.sqrt(
-                Math.pow(playerCenterX - starCenterX, 2) + 
-                Math.pow(playerCenterY - starCenterY, 2)
-            );
-            
-            if (distance < 40) {
+            if (dist < 45) {
                 score++;
                 scoreEl.textContent = '⭐ ' + score;
                 resetStar();
-                if (score % 3 === 0) {
-                    speed += 0.05;
-                }
+                if (score % 3 === 0) speed += 0.05;
             }
             
             star.style.top = starY + 'vh';
             star.style.left = starX + '%';
-            
             requestAnimationFrame(gameLoop);
         }
 
-        function resetStar() {
-            starY = -10;
-            let minX = Math.max(10, playerX - 25);
-            let maxX = Math.min(90, playerX + 25);
-            starX = Math.random() * (maxX - minX) + minX;
-        }
-
-        function gameOver() {
+        function handleGameOver() {
             gameRunning = false;
-            finalScoreEl.textContent = score;
+            document.getElementById('finalScore').textContent = score;
+            
+            // Логіка рекордів
+            const savedBest = parseInt(localStorage.getItem('best_' + currentPlayer) || 0);
+            const recordMsg = document.getElementById('recordMsg');
+            
+            if (score > savedBest) {
+                localStorage.setItem('best_' + currentPlayer, score);
+                recordMsg.style.display = 'block';
+            } else {
+                recordMsg.style.display = 'none';
+            }
+            
+            updateBestScoreDisplay();
             gameOverEl.style.display = 'block';
         }
 
@@ -220,18 +237,17 @@
             starY = -10;
             playerX = 50;
             gameRunning = true;
-            
             scoreEl.textContent = '⭐ 0';
             player.style.left = '50%';
             gameOverEl.style.display = 'none';
-            
             resetStar();
             gameLoop();
         }
 
-        player.style.left = '50%';
-        resetStar();
-        gameLoop();
+        function resetStar() {
+            starY = -10;
+            starX = Math.random() * 80 + 10;
+        }
     </script>
 </body>
 </html>
