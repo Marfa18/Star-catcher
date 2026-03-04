@@ -50,18 +50,20 @@
             line-height: 1;
         }
 
-        #gameOver, #startScreen {
+        .overlay {
             display: none;
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
             background: white;
+            color: #333;
             padding: 30px;
             border-radius: 20px;
             text-align: center;
             z-index: 100;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            width: 280px;
         }
 
         #startScreen { display: block; }
@@ -84,6 +86,13 @@
             border-radius: 10px;
             cursor: pointer;
         }
+
+        #leaderboard {
+            margin-top: 15px; text-align: left; font-size: 14px;
+            max-height: 150px; overflow-y: auto; border-top: 1px solid #eee; padding-top: 10px;
+        }
+        .score-row { display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px solid #f9f9f9; }
+        .is-me { font-weight: bold; color: #e67e22; }
 
         #controls {
             position: fixed;
@@ -120,7 +129,7 @@
             <div id="best-score">Best: 0</div>
         </div>
 
-        <div id="startScreen">
+        <div id="startScreen" class="overlay">
             <h2>Welcome!</h2>
             <input type="text" id="playerName" placeholder="Enter your name" maxlength="15">
             <br>
@@ -130,10 +139,13 @@
         <div id="player">🚀</div>
         <div id="star">⭐</div>
 
-        <div id="gameOver">
-            <h2 id="overTitle">Game Over!</h2>
-            <p>Score: <span id="finalScore">0</span></p>
-            <p id="recordMsg" style="color: #27ae60; font-weight: bold; display: none;">New Personal Record! 🎉</p>
+        <div id="gameOver" class="overlay">
+            <h2 id="overTitle" style="margin-top:0; color:#e74c3c">Game Over!</h2>
+            <p>Score: <b id="finalScore">0</b></p>
+            <p id="recordMsg" style="color: #27ae60; font-weight: bold; display: none;">New Record! 🎉</p>
+            
+            <div id="leaderboard">Loading rankings...</div>
+            <br>
             <button onclick="restart()">Play Again</button>
         </div>
     </div>
@@ -145,24 +157,23 @@
     <p class="info">Use buttons or Arrow keys</p>
 
     <script>
-        let score = 0;
-        let gameRunning = false;
-        let playerX = 50;
-        let starY = -10;
-        let starX = 50;
-        let speed = 0.3;
-        let currentPlayer = "";
+        // === ВСТАВ СВОЄ ПОСИЛАННЯ СЮДИ ===
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxvxMF_2h5WigOUpzYtMMzOLNtZlU2MqWBgTL917gC64oLa6VgcFwza50APoVqW6AO_/exec"; 
 
-        const player = document.getElementById('player');
-        const star = document.getElementById('star');
-        const scoreEl = document.getElementById('score');
-        const bestScoreEl = document.getElementById('best-score');
-        const gameOverEl = document.getElementById('gameOver');
-        const startScreen = document.getElementById('startScreen');
+        let score = 0, gameRunning = false, playerX = 50, starY = -10, starX = 50, speed = 0.3, currentPlayer = "";
+        const player = document.getElementById('player'), star = document.getElementById('star'), scoreEl = document.getElementById('score');
+        const bestScoreEl = document.getElementById('best-score'), gameOverEl = document.getElementById('gameOver'), startScreen = document.getElementById('startScreen');
+
+        // Автозаповнення імені, якщо вже грав(ла)
+        if(localStorage.getItem('lastPlayerName')) {
+            document.getElementById('playerName').value = localStorage.getItem('lastPlayerName');
+        }
 
         function startGame() {
             const nameInput = document.getElementById('playerName').value.trim();
-            currentPlayer = nameInput || "Guest";
+            if(!nameInput) return alert("Please enter your name!");
+            currentPlayer = nameInput;
+            localStorage.setItem('lastPlayerName', currentPlayer);
             startScreen.style.display = 'none';
             updateBestScoreDisplay();
             gameRunning = true;
@@ -189,15 +200,10 @@
 
         function gameLoop() {
             if (!gameRunning) return;
-            
             starY += speed;
-            if (starY > 110) {
-                handleGameOver();
-                return;
-            }
+            if (starY > 110) return handleGameOver();
             
-            const pR = player.getBoundingClientRect();
-            const sR = star.getBoundingClientRect();
+            const pR = player.getBoundingClientRect(), sR = star.getBoundingClientRect();
             const dist = Math.sqrt(Math.pow((pR.left+pR.width/2)-(sR.left+sR.width/2), 2) + Math.pow((pR.top+pR.height/2)-(sR.top+sR.height/2), 2));
             
             if (dist < 45) {
@@ -206,7 +212,6 @@
                 resetStar();
                 if (score % 3 === 0) speed += 0.05;
             }
-            
             star.style.top = starY + 'vh';
             star.style.left = starX + '%';
             requestAnimationFrame(gameLoop);
@@ -215,20 +220,49 @@
         function handleGameOver() {
             gameRunning = false;
             document.getElementById('finalScore').textContent = score;
-            
-            // Логіка рекордів
             const savedBest = parseInt(localStorage.getItem('best_' + currentPlayer) || 0);
-            const recordMsg = document.getElementById('recordMsg');
             
             if (score > savedBest) {
                 localStorage.setItem('best_' + currentPlayer, score);
-                recordMsg.style.display = 'block';
+                document.getElementById('recordMsg').style.display = 'block';
             } else {
-                recordMsg.style.display = 'none';
+                document.getElementById('recordMsg').style.display = 'none';
             }
             
             updateBestScoreDisplay();
             gameOverEl.style.display = 'block';
+            
+            // Відправка в хмару та оновлення таблиці
+            saveScoreToCloud(currentPlayer, score);
+        }
+
+        function saveScoreToCloud(name, score) {
+            document.getElementById('leaderboard').innerHTML = "Updating leaderboard...";
+            fetch(SCRIPT_URL, {
+                method: 'POST',
+                body: JSON.stringify({name: name, score: score})
+            })
+            .then(() => loadLeaderboard())
+            .catch(err => {
+                console.error(err);
+                document.getElementById('leaderboard').innerHTML = "Error loading scores.";
+            });
+        }
+
+        function loadLeaderboard() {
+            fetch(SCRIPT_URL)
+                .then(res => res.json())
+                .then(data => {
+                    let html = "<b>TOP PLAYERS:</b>";
+                    data.forEach((entry, index) => {
+                        let isMe = (entry.name === currentPlayer) ? "is-me" : "";
+                        html += `<div class="score-row ${isMe}">
+                            <span>${index+1}. ${entry.name}</span>
+                            <span>⭐ ${entry.score}</span>
+                        </div>`;
+                    });
+                    document.getElementById('leaderboard').innerHTML = html;
+                });
         }
 
         function restart() {
