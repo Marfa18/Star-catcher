@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Star Catcher 🚀</title>
+    <style>
+        body {
+            margin: 0;
+            background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+            touch-action: none;
+        }
+
+        #game {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+
+        #score {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+            z-index: 10;
+        }
+
+        #player {
+            position: absolute;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 50px;
+            transition: left 0.1s;
+            z-index: 5;
+            line-height: 1;
+        }
+
+        #star {
+            position: absolute;
+            top: -50px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 40px;
+            line-height: 1;
+        }
+
+        #gameOver {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            text-align: center;
+            z-index: 100;
+        }
+
+        #gameOver h2 {
+            color: #e74c3c;
+            margin-bottom: 10px;
+        }
+
+        #gameOver button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 18px;
+            border-radius: 10px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        #controls {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 20px;
+            z-index: 50;
+        }
+
+        #controls button {
+            width: 80px;
+            height: 80px;
+            font-size: 30px;
+            border: none;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            backdrop-filter: blur(10px);
+            cursor: pointer;
+            user-select: none;
+        }
+
+        #controls button:active {
+            background: rgba(255,255,255,0.4);
+            transform: scale(0.95);
+        }
+
+        .info {
+            position: fixed;
+            bottom: 110px;
+            width: 100%;
+            text-align: center;
+            color: rgba(255,255,255,0.6);
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div id="game">
+        <div id="score">⭐ 0</div>
+        <div id="player">🚀</div>
+        <div id="star">⭐</div>
+        <div id="gameOver">
+            <h2>Game Over!</h2>
+            <p>Score: <span id="finalScore">0</span></p>
+            <button onclick="restart()">Play Again</button>
+        </div>
+    </div>
+    <div id="controls">
+        <button ontouchstart="move('left')" onmousedown="move('left')">◀</button>
+        <button ontouchstart="move('right')" onmousedown="move('right')">▶</button>
+    </div>
+    <p class="info">Click the buttons or use the Arrow keys on your keyboard</p>
+
+    <script>
+        let score = 0;
+        let gameRunning = true;
+        let playerX = 50;
+        let starY = -10;
+        let starX = 50;
+        let speed = 0.3;
+
+        const player = document.getElementById('player');
+        const star = document.getElementById('star');
+        const scoreEl = document.getElementById('score');
+        const gameOverEl = document.getElementById('gameOver');
+        const finalScoreEl = document.getElementById('finalScore');
+
+        function move(direction) {
+            if (!gameRunning) return;
+            
+            if (direction === 'left' && playerX > 10) {
+                playerX -= 8;
+            } else if (direction === 'right' && playerX < 90) {
+                playerX += 8;
+            }
+            player.style.left = playerX + '%';
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft') move('left');
+            if (e.key === 'ArrowRight') move('right');
+        });
+
+        function gameLoop() {
+            if (!gameRunning) return;
+            
+            starY += speed;
+            
+            if (starY > 110) {
+                gameOver();
+                return;
+            }
+            
+            const playerRect = player.getBoundingClientRect();
+            const starRect = star.getBoundingClientRect();
+            
+            const playerCenterX = playerRect.left + playerRect.width / 2;
+            const playerCenterY = playerRect.top + playerRect.height / 2;
+            const starCenterX = starRect.left + starRect.width / 2;
+            const starCenterY = starRect.top + starRect.height / 2;
+            
+            const distance = Math.sqrt(
+                Math.pow(playerCenterX - starCenterX, 2) + 
+                Math.pow(playerCenterY - starCenterY, 2)
+            );
+            
+            if (distance < 40) {
+                score++;
+                scoreEl.textContent = '⭐ ' + score;
+                resetStar();
+                if (score % 3 === 0) {
+                    speed += 0.05;
+                }
+            }
+            
+            star.style.top = starY + 'vh';
+            star.style.left = starX + '%';
+            
+            requestAnimationFrame(gameLoop);
+        }
+
+        function resetStar() {
+            starY = -10;
+            let minX = Math.max(10, playerX - 25);
+            let maxX = Math.min(90, playerX + 25);
+            starX = Math.random() * (maxX - minX) + minX;
+        }
+
+        function gameOver() {
+            gameRunning = false;
+            finalScoreEl.textContent = score;
+            gameOverEl.style.display = 'block';
+        }
+
+        function restart() {
+            score = 0;
+            speed = 0.3;
+            starY = -10;
+            playerX = 50;
+            gameRunning = true;
+            
+            scoreEl.textContent = '⭐ 0';
+            player.style.left = '50%';
+            gameOverEl.style.display = 'none';
+            
+            resetStar();
+            gameLoop();
+        }
+
+        player.style.left = '50%';
+        resetStar();
+        gameLoop();
+    </script>
+</body>
+</html>
